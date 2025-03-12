@@ -3,6 +3,8 @@ import shutil
 import streamlit as st
 from PIL import Image
 from rag_setup import load_rag_chain
+import zipfile
+from io import BytesIO
 
 # --- Remove Existing Folders Before Execution (Only when a new scenario is entered) ---
 if "scenario_entered" not in st.session_state:
@@ -85,6 +87,9 @@ user_input = st.text_area("Enter your scenario:", height=300, key="user_input", 
 # --- Processing Message Placeholder ---
 processing_placeholder = st.empty()
 
+diagram_folder = "DIAGRAMS"
+puml_folder = "PUML"
+
 # --- Process Input ---
 if st.button("Generate UML Diagrams"):
     if user_input.strip():
@@ -123,9 +128,6 @@ if st.button("Generate UML Diagrams"):
 # --- Display Generated Diagrams (Only if a scenario has been entered) ---
 if st.session_state.scenario_entered:
     st.subheader("Generated UML Diagrams")
-
-    diagram_folder = "DIAGRAMS"
-    puml_folder = "PUML"
 
     os.makedirs(diagram_folder, exist_ok=True)
     os.makedirs(puml_folder, exist_ok=True)
@@ -170,6 +172,44 @@ if st.session_state.scenario_entered:
                             mime="text/plain",
                             key=f"puml_{puml_filename}"
                         )
+        # --- Create ZIP File Helper ---
+        def create_zip(folder_path, zip_filename):
+            """Compress all files in a folder into a ZIP file."""
+            zip_buffer = BytesIO()
+            with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
+                for root, _, files in os.walk(folder_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        zipf.write(file_path, arcname=file)  # Keep relative paths inside ZIP
+            zip_buffer.seek(0)  # Reset pointer to start
+            return zip_buffer
+
+        # --- Layout for Two Side-by-Side Wide Buttons ---
+        col1, col2 = st.columns(2)
+
+        # --- Download All Images as ZIP ---
+        with col1:
+            if os.listdir(diagram_folder):  # Ensure images exist
+                image_zip = create_zip(diagram_folder, "uml_diagrams.zip")
+                st.download_button(
+                    label="📂 Download All Images",
+                    data=image_zip,
+                    file_name="UML_Diagrams.zip",
+                    mime="application/zip",
+                    use_container_width=True  # Make the button wide
+                )
+
+        # --- Download All PlantUML Files as ZIP ---
+        with col2:
+            if os.listdir(puml_folder):  # Ensure PlantUML files exist
+                puml_zip = create_zip(puml_folder, "plantuml_codes.zip")
+                st.download_button(
+                    label="📂 Download All PlantUML Codes",
+                    data=puml_zip,
+                    file_name="PlantUML_Codes.zip",
+                    mime="application/zip",
+                    use_container_width=True  # Make the button wide
+                )
 
     else:
         st.info("Click 'Generate UML Diagrams' to generate UML diagrams.")
