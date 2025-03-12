@@ -67,13 +67,17 @@ st.markdown(
 st.title("RAG-Based UML Diagram Generator")
 st.write("Enter a detailed software scenario below. The system will generate UML diagrams using a RAG model.")
 
-# --- Cache the RAG Chain to Load Once ---
-@st.cache_resource
+# --- Cache the RAG Chain to prevent reloading ---
+@st.cache_resource(show_spinner=False)
 def get_rag_chain():
-    return load_rag_chain()
+    return load_rag_chain()  # Directly load and cache the RAG model
 
-# Load RAG Model (Runs Once)
-rag_chain = get_rag_chain()
+# Load RAG Model with Custom Spinner
+with st.spinner("Initializing RAG Model..."):
+    if "rag_chain" not in st.session_state:
+        st.session_state.rag_chain = get_rag_chain()  # Caching to prevent reloading
+
+rag_chain = st.session_state.rag_chain  # Store in session_state
 
 # --- Large Text Area for Input ---
 user_input = st.text_area("Enter your scenario:", height=300, key="user_input", help="Provide a detailed description.")
