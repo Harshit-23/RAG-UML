@@ -24,6 +24,17 @@ os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
 os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
+def format_docs(docs, file_path="retrieved_docs.txt"):
+    """Format retrieved documents and save them to a file for debugging."""
+    formatted_text = "\n\n".join(doc.page_content for doc in docs)
+
+    # Save retrieved documents to a file
+    with open(file_path, "w", encoding="utf-8") as f:
+        for i, doc in enumerate(docs, 1):
+            f.write(f"Document {i}:\n{doc.page_content}\n{'='*50}\n")
+
+    return formatted_text  # Ensure the pipeline still works
+
 def load_rag_chain():
     """Loads and initializes the RAG pipeline."""
     print("🔄 Initializing RAG Model...")
@@ -53,7 +64,7 @@ def load_rag_chain():
     document_text = "\n".join(all_texts)
 
     # Chunking for retrieval
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=200)
     chunks = text_splitter.split_text(document_text)
     documents = [Document(page_content=chunk) for chunk in chunks]
 
@@ -87,7 +98,7 @@ def load_rag_chain():
 
     # Define RAG Chain
     rag_chain = (
-        {"context": retriever | (lambda docs: "\n\n".join(doc.page_content for doc in docs)), "query": RunnablePassthrough()}
+        {"context": retriever | format_docs, "query": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
