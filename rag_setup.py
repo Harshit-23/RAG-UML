@@ -24,6 +24,17 @@ os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
 os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
 os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
+def format_docs(docs, file_path="retrieved_docs.txt"):
+    """Format retrieved documents and save them to a file for debugging."""
+    formatted_text = "\n\n".join(doc.page_content for doc in docs)
+
+    # Save retrieved documents to a file
+    with open(file_path, "w", encoding="utf-8") as f:
+        for i, doc in enumerate(docs, 1):
+            f.write(f"Document {i}:\n{doc.page_content}\n{'='*50}\n")
+
+    return formatted_text  # Ensure the pipeline still works
+
 def load_rag_chain():
     """Loads and initializes the RAG pipeline."""
     print("🔄 Initializing RAG Model...")
@@ -53,7 +64,7 @@ def load_rag_chain():
     document_text = "\n".join(all_texts)
 
     # Chunking for retrieval
-    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+    text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=200)
     chunks = text_splitter.split_text(document_text)
     documents = [Document(page_content=chunk) for chunk in chunks]
 
@@ -78,83 +89,6 @@ def load_rag_chain():
     with open("prompt_template.txt", "r", encoding="utf-8") as file:
         template = file.read()
     
-    # template = """
-    # Role Definition:
-    # You are an expert software engineer and UML designer with deep knowledge of software architecture, object-oriented design, and system modelling. Your task is to generate precise, syntactically correct, and logically complete PlantUML diagrams based on a given software scenario.
-
-    # User-Provided Scenario:
-    # {query}
-
-    # Instructions:
-    # 1.	Analyse the input scenario:
-    # a)	Identify key entities, actors, use cases, classes, objects, states, and interactions.
-    # b)	Extract relationships between these components, including inheritance, composition, association, dependencies.
-    # c)	Recognize system behaviour over time to ensure proper structuring of sequence and state diagrams.
-
-    # 2.	Generate UML Diagrams in the correct PlantUML syntax. Provide correct and complete PlantUML code for the following UML diagrams:
-    # a)	Use Case Diagram (System Actors & Use Cases):
-    # 	Actors must be enclosed in "actor" elements and connected to use cases with -- or -->.
-    # 	All system functionalities must be enclosed inside a "rectangle" representing the system boundary.
-    # 	Use include and extends relationships where applicable for modular representation.
-    # 	Ensure all actors have valid use case interactions (Avoid isolated actors).
-
-    # b)	Class Diagram (System Structure & Relationships):
-    # 	Use correct UML relationships:
-    # Inheritance / Generalization (--|>)
-    # Composition (*--)
-    # Aggregation (o--)
-    # Association (--)
-    # 	Use correct cardinalities to specify relationships:
-    # 1.	One-to-One (`User "1" -- "1" Order`)
-    # 2.	One-to-Many (`User "1" -- "*" Order`)
-    # 3.	Many-to-One (`Order "*" -- "1" Payment`)
-    # 4.	Many-to-Many (`Student "*" -- "*" Course`)
-    # 	Ensure every class has proper attributes and methods.
-    # 	Avoid floating classes (every class must be linked to at least one other entity).
-
-    # c)	Activity Diagram (Process Flow & Workflow Representation):
-    # 	Use activity nodes with syntax `:Activity Name;`.
-    # 	Start the process using `start` or `[*] --> FirstActivity;`.
-    # 	End the process using `stop`, `end`, or `LastActivity --> [*];`.
-    # 	Use decision nodes with `if (Condition?) then (Yes)` and `else (No)` followed by `endif`.
-    # 	Represent parallel activities using `fork`, `fork again`, and `end fork`.
-    # 	Include loops with `repeat`, `repeat while (Condition?)`, or `while (Condition?)` followed by `endwhile`.
-    # 	Ensure all activities are logically connected to represent a complete workflow.
-
-    # d)	Sequence Diagram (Object Interaction Over Time)
-    # 	Follow correct lifeline notation (Use participant for entities).
-    # 	Use arrows (-> or -->) for interactions.
-    # 	Ensure messages are clearly defined, showing method calls, returns, and interactions.
-    # 	Every participant must have meaningful interactions.
-
-    # e)	Collaboration Diagram (Object Flow Representation)
-    # 	Use directed associations (->) to represent interactions between objects.
-    # 	Ensure the diagram follows a flowchart-like structure rather than a timeline-based approach.
-    # 	Correctly represent interactions among multiple entities.
-    # 	Number the functions/interactions between various objects/entities sequentially to maintain clarity and order.
-
-    # f)	State Diagram (Object Lifecycle & Transitions)
-    # 	Use transitions (-->) to show state progression.
-    # 	Use `state "xyz" as XYZ` syntax while defining a state.
-    # 	Ensure complex objects have multiple possible states.
-    # 	Do not isolate states (every state must have an entry and exit point).
-
-    # 3.	Ensure Consistency and Accuracy:
-    # a)	Follow UML best practices to avoid redundancy and maintain clarity.
-    # b)	Ensure all diagram elements align with the described software scenario.
-    # c)	Use meaningful and concise naming conventions.
-
-    # 4.	Output Format (Follow strictly):
-    # a)	Each diagram should be enclosed in triple backticks (` ``` `) with "plantuml" specified for markdown compatibility.
-    # b)	Clearly label each diagram with a heading/comment (Each diagram’s code should be labelled like this: ' === Class Diagram === in the plantUML code right after ‘@startuml’)
-    # c)	The output must contain only the PlantUML code (with all codes as a single snippet), with no additional text.
-
-
-    # Sample Context (DO NOT use the formatting of the context below in your response. Use formatting mentioned above in the instructions):
-    # {context}
-
-    # """
-
     # Define Prompt
     prompt = ChatPromptTemplate.from_template(template)
 
@@ -164,7 +98,7 @@ def load_rag_chain():
 
     # Define RAG Chain
     rag_chain = (
-        {"context": retriever | (lambda docs: "\n\n".join(doc.page_content for doc in docs)), "query": RunnablePassthrough()}
+        {"context": retriever | format_docs, "query": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
