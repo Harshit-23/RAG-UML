@@ -1,0 +1,39 @@
+/* Widen the centered content block */
+.block-container {
+    max-width: 1100px !important;
+    margin-left: auto !important;
+    margin-right: auto !important;
+}
+
+/* Make text box wider */
+.stTextArea textarea {
+    font-size: 16px !important;
+    width: 100% !important;
+}
+
+/* Keep black border by default */
+textarea, input, button {
+    border: 2px solid black !important;
+    border-radius: 5px !important;
+}
+
+/* Green glow on focus */
+textarea:focus, input:focus {
+    border-color: black !important;
+    box-shadow: 0 0 5px green !important;
+}
+
+/* Reduce button size */
+div.stButton > button, div.stDownloadButton > button {
+    font-size: 10px !important;
+    padding: 3px 6px !important;
+    height: 25px !important;
+}
+
+/* Display images at a smaller size without affecting downloads */
+.diagram-img {
+    max-height: 450px !important;
+    width: auto !important;
+    display: block;
+    margin: auto;
+}

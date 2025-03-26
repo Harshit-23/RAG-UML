@@ -16,27 +16,49 @@ os.makedirs(DIAGRAM_FOLDER, exist_ok=True)
 gpt_output_file = "gpt_output.txt"
 
 def extract_plantuml_blocks(file_path):
+    # Ensure the output directory exists
+    output_dir = "PUML"
+    os.makedirs(output_dir, exist_ok=True)
+    
     with open(file_path, "r", encoding="utf-8") as file:
-        response_text = file.read()
-
-    # Updated regex to properly capture the diagram title and UML code
-    pattern = r"@startuml\s*\n?' === (.*?) ===\s*\n([\s\S]*?)@enduml"
-
-    matches = re.findall(pattern, response_text, re.DOTALL)
-
-    # Return list of tuples (diagram_type, UML_code)
-    return [(m[0].strip().replace(" ", "_").lower(), f"@startuml\n' === {m[0]} ===\n{m[1]}\n@enduml") for m in matches]
+        content = file.read()
+    
+    # Regex pattern to match PlantUML blocks
+    pattern = re.compile(r"@startuml(.*?)@enduml", re.DOTALL)
+    
+    matches = pattern.findall(content)
+    if not matches:
+        print("No PlantUML diagrams found.")
+        return []
+    
+    extracted_files = []
+    for match in matches:
+        # Extract diagram name from the comment
+        name_match = re.search(r"'\s*===\s*(.*?)\s*===", match)
+        if name_match:
+            diagram_name = name_match.group(1).replace(":", " ").strip().replace(" ", "_")  # Normalize filename
+            file_name = f"{diagram_name}.puml"
+            file_path = os.path.join(output_dir, file_name)
+            
+            # Save the PlantUML diagram
+            with open(file_path, "w", encoding="utf-8") as output_file:
+                output_file.write(f"@startuml{match}@enduml")
+            extracted_files.append(file_name)
+    
+    print(f"Extracted {len(extracted_files)} PlantUML diagrams into '{output_dir}' folder.")
+    return extracted_files
 
 # --- Extract and Save PUML Files ---
 if os.path.exists(gpt_output_file):
     uml_blocks = extract_plantuml_blocks(gpt_output_file)
 
-    for diagram_type, uml_code in uml_blocks:
-        puml_filename = os.path.join(PUML_FOLDER, f"{diagram_type}.puml")
-        with open(puml_filename, "w", encoding="utf-8", newline="\n") as puml_file:
-            puml_file.write(uml_code.strip() + "\n")
-        
-        print(f"✅ Extracted '{diagram_type}' and saved to: {puml_filename}")
+    # Process each extracted UML diagram
+    for file_name in uml_blocks:
+        puml_filename = os.path.join(PUML_FOLDER, file_name)
+        with open(puml_filename, "r", encoding="utf-8") as puml_file:
+            uml_code = puml_file.read()
+
+        print(f"✅ Extracted '{file_name}' and saved to: {puml_filename}")
 
 # --- Convert PUML to PNG Using Kroki ---
 KROKI_PLANTUML_URL = "https://kroki.io/plantuml/png"

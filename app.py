@@ -17,53 +17,17 @@ if "scenario_entered" not in st.session_state:
 # --- Set Up Streamlit Page ---
 st.set_page_config(page_title="RAG UML Diagram Generator", layout="wide")
 
-# --- Custom CSS for UI Improvements ---
-st.markdown(
-    """
-    <style>
-    /* Widen the centered content block */
-    .block-container {
-        max-width: 1100px !important;
-        margin-left: auto !important;
-        margin-right: auto !important;
-    }
+# Read custom CSS from file
+css_file = "custom_styles.css"
+if os.path.exists(css_file):
+    with open(css_file, "r", encoding="utf-8") as file:
+        custom_css = file.read()
+else:
+    custom_css = ""  # Fallback if file is missing
 
-    /* Make text box wider */
-    .stTextArea textarea {
-        font-size: 16px !important;
-        width: 100% !important;
-    }
+# Apply the CSS
+st.markdown(f"<style>{custom_css}</style>", unsafe_allow_html=True)
 
-    /* Keep black border by default */
-    textarea, input, button {
-        border: 2px solid black !important;
-        border-radius: 5px !important;
-    }
-    
-    /* Green glow on focus */
-    textarea:focus, input:focus {
-        border-color: black !important;
-        box-shadow: 0 0 5px green !important;
-    }
-
-    /* Reduce button size */
-    div.stButton > button, div.stDownloadButton > button {
-        font-size: 10px !important;
-        padding: 3px 6px !important;
-        height: 25px !important;
-    }
-
-    /* Display images at a smaller size without affecting downloads */
-    .diagram-img {
-        max-height: 450px !important;
-        width: auto !important;
-        display: block;
-        margin: auto;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
 
 # --- Page Title ---
 st.title("RAG-Based UML Diagram Generator")
@@ -79,35 +43,65 @@ with st.spinner("Initializing RAG Model..."):
     if "rag_chain" not in st.session_state:
         st.session_state.rag_chain = get_rag_chain()  # Caching to prevent reloading
 
+# --- Load RAG Chain ---
 rag_chain = st.session_state.rag_chain  # Store in session_state
 
 # --- Large Text Area for Input ---
 user_input = st.text_area("Enter your scenario:", height=300, key="user_input", help="Provide a detailed description.")
 
+# --- Extra Instructions (Optional) ---
+expertise_input = st.text_area("Provide additional expertise information (optional):", 
+                               height=150, key="expertise_input",
+                               help="This is optional. If provided, it will be used to refine the UML generation process.")
+
 # --- Processing Message Placeholder ---
 processing_placeholder = st.empty()
 
+# --- Folders Setup ---
 diagram_folder = "DIAGRAMS"
 puml_folder = "PUML"
 
+# List of files to delete
+files_to_delete = ["retrieved_docs.txt", "expertise_info.txt", "gpt_output.txt", "user_scenario.txt"]
+
+# List of folders to delete
+folders_to_delete = ["DIAGRAMS", "PUML"]
+
 # --- Process Input ---
 if st.button("Generate UML Diagrams"):
+    print("Button Clicked!")
     if user_input.strip():
-        # Remove old diagrams when a new scenario is entered
-        shutil.rmtree("DIAGRAMS", ignore_errors=True)
-        shutil.rmtree("PUML", ignore_errors=True)
-        os.makedirs("DIAGRAMS", exist_ok=True)
-        os.makedirs("PUML", exist_ok=True)
+        # Remove old folders
+        for folder in folders_to_delete:
+            shutil.rmtree(folder, ignore_errors=True)
+            os.makedirs(folder, exist_ok=True)
+
+        # Remove old files
+        for file in files_to_delete:
+            if os.path.exists(file):
+                os.remove(file)
 
         st.session_state.scenario_entered = True  # Track scenario input
 
-        # Save Input to File
+        # Save User Scenario
         with open("user_scenario.txt", "w", encoding="utf-8") as file:
             file.write(user_input)
 
-        processing_placeholder.write("⏳ **Processing... This may take a minute.**")
+        # Save Expertise Information (Optional)
+        with open("expertise_info.txt", "w", encoding="utf-8") as file:
+            file.write(expertise_input.strip() if expertise_input.strip() else "No additional expertise information provided.")
 
-        # Invoke the RAG Model
+        processing_placeholder.write("⏳ **Processing... This may take 1-2 minutes.**")
+
+        # Read expertise_info.txt
+        expertise_info_path = "expertise_info.txt"
+        if os.path.exists(expertise_info_path):
+            with open(expertise_info_path, "r", encoding="utf-8") as file:
+                expertise_info = file.read()
+        else:
+            expertise_info = "No additional expertise information provided."
+
+        # Invoke the RAG Model with both scenario and expertise info
         try:
             response = rag_chain.invoke(user_input)
 
