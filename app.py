@@ -28,23 +28,24 @@ else:
 # Apply the CSS
 st.markdown(f"<style>{custom_css}</style>", unsafe_allow_html=True)
 
-
 # --- Page Title ---
 st.title("RAG-Based UML Diagram Generator")
 st.write("Enter a detailed software scenario below. The system will generate UML diagrams using a RAG model.")
 
-# --- Cache the RAG Chain to prevent reloading ---
+# --- Cache the RAG Chains to prevent reloading ---
 @st.cache_resource(show_spinner=False)
-def get_rag_chain():
-    return load_rag_chain()  # Directly load and cache the RAG model
+def get_rag_chains():
+    return load_rag_chain()
 
 # Load RAG Model with Custom Spinner
 with st.spinner("Initializing RAG Model..."):
-    if "rag_chain" not in st.session_state:
-        st.session_state.rag_chain = get_rag_chain()  # Caching to prevent reloading
+    if "first_rag_chain" not in st.session_state or "second_rag_chain" not in st.session_state:
+        st.session_state.first_rag_chain, st.session_state.second_rag_chain = get_rag_chains()
 
-# --- Load RAG Chain ---
-rag_chain = st.session_state.rag_chain  # Store in session_state
+# --- Load RAG Chains ---
+first_rag_chain, second_rag_chain = get_rag_chains()
+st.session_state.first_rag_chain = first_rag_chain
+st.session_state.second_rag_chain = second_rag_chain
 
 # --- Large Text Area for Input ---
 user_input = st.text_area("Enter your scenario:", height=300, key="user_input", help="Provide a detailed description.")
@@ -87,33 +88,55 @@ if st.button("Generate UML Diagrams"):
         with open("user_scenario.txt", "w", encoding="utf-8") as file:
             file.write(user_input)
 
-        # Save Expertise Information (Optional)
+        # Save Expertise Information
         with open("expertise_info.txt", "w", encoding="utf-8") as file:
             file.write(expertise_input.strip() if expertise_input.strip() else "No additional expertise information provided.")
 
-        processing_placeholder.write("⏳ **Processing... This may take 1-2 minutes.**")
+        processing_placeholder.write("⏳ **Processing... This may take a few minutes.**")
 
-        # Read expertise_info.txt
-        expertise_info_path = "expertise_info.txt"
-        if os.path.exists(expertise_info_path):
-            with open(expertise_info_path, "r", encoding="utf-8") as file:
-                expertise_info = file.read()
-        else:
-            expertise_info = "No additional expertise information provided."
-
-        # Invoke the RAG Model with both scenario and expertise info
+         # Step 1: Invoke the first RAG chain
         try:
-            response = rag_chain.invoke(user_input)
+            uml_output = first_rag_chain.invoke(user_input)
 
-            # Save the response to a file
+            # Save UML output to a file
+            with open("uml_output.txt", "w", encoding="utf-8") as file:
+                file.write(uml_output)
+
+            # Step 2: Read all required files and create a single prompt context
+            def read_file(file_path, default_text="No information provided."):
+                if os.path.exists(file_path):
+                    with open(file_path, "r", encoding="utf-8") as file:
+                        return file.read().strip()
+                return default_text
+
+            user_input_content = read_file("user_scenario.txt")
+            uml_output_content = uml_output
+            expertise_info_content = read_file("expertise_info.txt")
+
+            all_contexts = f"""
+            User-provided Scenario:
+            {user_input_content}
+
+            UML information:
+            {uml_output_content}
+
+            Expertise information:
+            {expertise_info_content}
+            """
+
+            # Step 3: Pass the formatted string to the second RAG chain
+            final_response = second_rag_chain.invoke(all_contexts)
+
+            # Save the final response to a file
             with open("gpt_output.txt", "w", encoding="utf-8") as output_file:
-                output_file.write(response)
+                output_file.write(final_response)
 
             # Generate UML Diagrams
             os.system("python generate_diagrams.py")
 
             st.success("✅ UML diagrams generated successfully!")
-            processing_placeholder.empty()  # Remove processing message
+            processing_placeholder.empty()
+
         except Exception as e:
             st.error(f"❌ An error occurred: {e}")
     else:

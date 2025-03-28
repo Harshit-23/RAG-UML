@@ -103,11 +103,11 @@ def load_rag_chain():
     )
 
     second_rag_chain = (
-        {"uml_output": first_rag_chain, "query": RunnablePassthrough(), "expertise_info": RunnablePassthrough() | (lambda _: expertise_info)}
+        {"all_contexts": RunnablePassthrough()}
         | second_prompt
         | llm_2
         | StrOutputParser()
     )
 
     print("Chain of Thoguht RAG Model Initialized Successfully!")
-    return second_rag_chain
+    return first_rag_chain, second_rag_chain
