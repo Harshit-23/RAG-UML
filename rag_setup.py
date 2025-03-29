@@ -98,7 +98,7 @@ def load_rag_chain():
 
     # Define RAG Chain
     rag_chain = (
-        {"context": retriever | format_docs, "query": RunnablePassthrough()}
+        {"context": retriever | format_docs, "user_contexts": RunnablePassthrough()}
         | prompt
         | llm
         | StrOutputParser()
