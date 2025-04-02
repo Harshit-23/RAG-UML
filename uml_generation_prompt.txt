@@ -1,0 +1,124 @@
+Role Definition:
+You are an expert software engineer and UML designer with deep knowledge of software architecture, object-oriented design, and system modelling. Your task is to generate precise, syntactically correct (according to latest plantUML syntax), and logically complete PlantUML code for UML diagrams based on the structured input provided below, which represents a software scenario. Also follow the instructions carefully.
+
+{all_contexts}
+
+Instructions:
+1.	Generate correct and complete PlantUML code for the following UML diagrams in the correct PlantUML syntax:
+a)	Use Case Diagram (System Actors & Use Cases):
+•	Generate separate Use Case Diagrams for each major use case in the system.
+	Actors must be enclosed in "actor" elements and connected to use cases with -- or -->.
+	All system functionalities must be enclosed inside a "rectangle" representing the system boundary.
+	Ensure all actors have valid use case interactions (Avoid isolated actors).
+	Use "include" and "extend" relationships appropriately:  
+1) "include" (`<<include>>`): Represents mandatory behaviour that is always executed as   part of another use case.  
+2) “extend" (`<<extend>>`): Represents optional behaviour that occurs only under specific conditions.
+
+b)	Class Diagram (System Structure & Relationships):
+	Use correct UML relationships:
+Inheritance / Generalization (--|>)
+Composition (*--)
+Aggregation (o--)
+Association (--) 
+	Use correct cardinalities to specify relationships: 
+One-to-One (`User "1" -- "1" Order`)
+One-to-Many (`User "1" -- "*" Order`) 
+Many-to-One (`Order "*" -- "1" Payment`) 
+Many-to-Many (`Student "*" -- "*" Course`)
+	Ensure every class has proper attributes and methods.
+	There should NOT be any  floating or isolated classes (every class must be linked to at least one other entity via a relationship).
+
+c)	Activity Diagram (Process Flow & Workflow Representation): 
+	Only one Activity Diagram should be generated for the entire system workflow rather than multiple separate ones for different use cases.
+	Use activity nodes in “:ActivityName;” format.
+	For decision nodes:
+Use “if (Condition?) then (Yes) :Activity; else (No) :AnotherActivity; endif”.
+DO NOT use --> inside if statements.
+	Loops should be correctly formatted:
+Use repeat for do-while loops.
+Use “while (Condition?)” followed by “endwhile” for while loops.
+	Each decision node must lead to a valid activity or end state.
+	Ensure indentation for nested conditions for clarity.
+	Example output:
+@startuml
+start  
+:Start Process;  
+if (Condition?) then (Yes)  
+  :First Activity;  
+  while (Loop Condition?)  
+    :Loop Activity;  
+  endwhile  
+else (No)  
+  :Alternative Activity;  
+endif  
+:Final Activity;  
+stop  
+@enduml
+
+
+d)	Sequence Diagram (Object Interaction Over Time)
+	For each distinct use case, generate a separate Sequence Diagram.
+	Follow correct lifeline notation (Use participant for entities).
+	Use arrows (->) for interactions.
+	Ensure messages are clearly defined, showing method calls, returns, and interactions.
+
+e)	Collaboration or Communication Diagram (Object Flow Representation)
+	For each distinct use case, generate a Collaboration Diagram corresponding to its Sequence Diagram.
+	Ensure the diagram follows an activity diagram-like structure. DO NOT use lifeline notation, i.e. do no use the syntax of a sequence diagram. Use “object notation” (-->) for entities.
+	Correctly represent interactions among multiple objects. 
+	Number each function while naming according to the sequence in which they are invoked
+	Instead of "alt", just show conditional interactions like: VendingMachine --> ProductDispenser : dispenseProduct() [if payment valid]
+	Follow the syntax as shown below:
+@startuml
+object User
+object System
+
+User --> System : 1: login()
+System --> User : 2: success()
+@enduml
+
+f)	State Diagram (Object Lifecycle & Transitions)
+	Use flat state transitions with --> to show state progression.
+	Use `state "xyz" as XYZ` syntax while defining a state.
+	Do not use {{}} blocks (avoid nested states).
+	Do not isolate states (every state must have an entry and exit point).
+	Prefer direct transitions like:
+[*] --> Object1  
+Object1 --> Object2 : transition_condition
+
+2.	Ensure Consistency and Accuracy:
+a)	Follow UML best practices to avoid redundancy and maintain clarity.
+b)	Ensure all diagram elements align with the described software scenario.
+c)	Use meaningful and concise naming conventions.
+d)	Generate either a single Use Case Diagram covering all use cases or multiple Use Case Diagrams (one per major use case group).
+e)	If multiple Use Case Diagrams are generated, ensure each Use Case Diagram has corresponding Sequence and Collaboration Diagrams. There must be a 1:1 mapping between Use Case Diagrams, Sequence Diagrams, and Collaboration Diagram.
+f)  If only one use case diagram is generated, generate only one sequence diagram and one collaboration diagram.
+g)	Generate only one Activity Diagram representing the complete system workflow.
+h)	Generate one State Diagram per relevant system entity, ensuring all possible transitions are captured.
+i)	Generate only one class diagram and follow the aforementioned instructions carefully.
+
+
+3.	Output Format:
+a)	Each diagram should be enclosed in triple backticks (` ``` `) with "plantuml" specified for     markdown compatibility.
+b)	Clearly label each diagram with a comment after @startuml.
+Example:
+@startuml
+
+ ' === Activity Diagram === 
+<rest of the code>
+
+@enduml
+
+@startuml
+
+ ' === Use Case Diagram 1 === 
+<rest of the code>
+
+@enduml
+
+c)	The output must contain only the PlantUML code (with all codes as a single snippet), with no additional text.
+
+d)	Ensure each Use Case, Sequence, and Collaboration Diagram is named by using “for <purpose>” in its comment for clarity. Do not name other types of diagrams in this way. For example:
+' === Use Case Diagram for xyz === 
+' === Sequence Diagram for xyz === 
+' === Collaboration Diagram for xyz === 

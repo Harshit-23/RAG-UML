@@ -36,15 +36,14 @@ def format_docs(docs, file_path="retrieved_docs.txt"):
     return formatted_text  # Ensure the pipeline still works
 
 def load_rag_chain():
-    """Loads and initializes the RAG pipeline."""
-    print("🔄 Initializing RAG Model...")
+    """Loads and initializes the RAG pipeline using two LLMs."""
+    print("🔄 Initializing Two-Stage RAG Model...")
 
-    # Define dataset folder
+    # Load dataset and extract text from PDFs
     project_dir = os.getcwd()
     folder_path = os.path.join(project_dir, "dataset")
     os.makedirs(folder_path, exist_ok=True)
 
-    # Function to extract text from PDFs
     def extract_text_from_pdf(pdf_path):
         doc = fitz.open(pdf_path)
         text = ""
@@ -52,57 +51,63 @@ def load_rag_chain():
             text += page.get_text("text") + "\n"
         return text
 
-    # Extract text from all PDFs in 'dataset' folder
-    all_texts = []
-    for file in os.listdir(folder_path):
-        if file.endswith(".pdf"):
-            pdf_path = os.path.join(folder_path, file)
-            text = extract_text_from_pdf(pdf_path)
-            all_texts.append(text)
-
-    # Combine extracted text
+    all_texts = [extract_text_from_pdf(os.path.join(folder_path, f)) for f in os.listdir(folder_path) if f.endswith(".pdf")]
     document_text = "\n".join(all_texts)
 
     # Chunking for retrieval
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=1200, chunk_overlap=200)
-    chunks = text_splitter.split_text(document_text)
-    documents = [Document(page_content=chunk) for chunk in chunks]
+    documents = [Document(page_content=chunk) for chunk in text_splitter.split_text(document_text)]
 
-    # Define a persistent storage path for ChromaDB
+    # Persistent ChromaDB storage
     chroma_db_path = os.path.join(os.getcwd(), "chroma_db")
     os.makedirs(chroma_db_path, exist_ok=True)
+    vectorstore = Chroma(persist_directory=chroma_db_path, embedding_function=OpenAIEmbeddings())
 
-    # Load or Create Persistent ChromaDB
-    vectorstore = Chroma(
-        persist_directory=chroma_db_path,  # ✅ Chroma auto-saves
-        embedding_function=OpenAIEmbeddings()
-    )
-
-    # If Chroma is empty, populate it
+    # Populate ChromaDB if empty
     if vectorstore._collection.count() == 0:
-        print("🔄 Populating ChromaDB with new documents...")
+        print("🔄 Populating ChromaDB...")
         vectorstore.add_documents(documents)
 
     retriever = vectorstore.as_retriever()
 
-    # Read the template from file
-    with open("prompt_template.txt", "r", encoding="utf-8") as file:
-        template = file.read()
+    # Load first LLM prompt template (UML Extraction)
+    with open("uml_extraction_prompt.txt", "r", encoding="utf-8") as file:
+        first_prompt_template = file.read()
     
-    # Define Prompt
-    prompt = ChatPromptTemplate.from_template(template)
+    first_prompt = ChatPromptTemplate.from_template(first_prompt_template)
+    
+    # Load second LLM prompt template (PlantUML Generation)
+    with open("uml_generation_prompt.txt", "r", encoding="utf-8") as file:
+        second_prompt_template = file.read()
+    
+    second_prompt = ChatPromptTemplate.from_template(second_prompt_template)
 
-    # Load LLM Model
-    # llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    # Load expertise information from `expertise_info.txt`
+    expertise_info_path = os.path.join(os.getcwd(), "expertise_info.txt")
+    if os.path.exists(expertise_info_path):
+        with open(expertise_info_path, "r", encoding="utf-8") as file:
+            expertise_info = file.read()
+    else:
+        expertise_info = "No additional expertise information provided."
 
-    # Define RAG Chain
-    rag_chain = (
+    # Load LLM Models
+    llm_1 = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.001)
+    llm_2 = ChatOpenAI(model_name="gpt-4o-mini", temperature=0.001)
+
+    # Define Two-Step RAG Chain
+    first_rag_chain = (
         {"context": retriever | format_docs, "query": RunnablePassthrough()}
-        | prompt
-        | llm
+        | first_prompt
+        | llm_1
         | StrOutputParser()
     )
 
-    print("✅ RAG Model Initialized Successfully!")
-    return rag_chain
+    second_rag_chain = (
+        {"all_contexts": RunnablePassthrough()}
+        | second_prompt
+        | llm_2
+        | StrOutputParser()
+    )
+
+    print("Chain of Thoguht RAG Model Initialized Successfully!")
+    return first_rag_chain, second_rag_chain
