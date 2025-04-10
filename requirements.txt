@@ -1,0 +1,10 @@
+streamlit==1.44.1
+Pillow
+PyMuPDF
+openai
+langchain
+langchain-openai
+langchain-community
+langchain-core
+langchain-chroma
+requests
