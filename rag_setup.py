@@ -7,22 +7,22 @@ from langchain_chroma import Chroma
 from langchain.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
+# load_dotenv()
 
 # Now you can access them safely
-LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2")
-LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT")
-LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2")
+# LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT")
+# LANGCHAIN_API_KEY = os.getenv("LANGCHAIN_API_KEY")
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
 # Set them as environment variables
-os.environ["LANGCHAIN_TRACING_V2"] = LANGCHAIN_TRACING_V2
-os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
-os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+# os.environ["LANGCHAIN_TRACING_V2"] = LANGCHAIN_TRACING_V2
+# os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
+# os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
+# os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 def format_docs(docs, file_path="retrieved_docs.txt"):
     """Format retrieved documents and save them to a file for debugging."""
@@ -35,8 +35,18 @@ def format_docs(docs, file_path="retrieved_docs.txt"):
 
     return formatted_text  # Ensure the pipeline still works
 
-def load_rag_chain():
-    """Loads and initializes the RAG pipeline."""
+def extract_text_from_pdf(pdf_path):
+    """Extract text from a given PDF file."""
+    doc = fitz.open(pdf_path)
+    return "\n".join(page.get_text("text") for page in doc)
+
+def load_rag_chain(api_key, model="gpt-4o-mini"):
+    """Loads and initializes the RAG pipeline using the provided API key and model."""
+    if not api_key:
+        raise ValueError("API key is required to initialize the RAG model.")
+    
+    os.environ["OPENAI_API_KEY"] = api_key  # Set API key globally for OpenAI
+
     print("🔄 Initializing RAG Model...")
 
     # Define dataset folder
@@ -44,23 +54,8 @@ def load_rag_chain():
     folder_path = os.path.join(project_dir, "dataset")
     os.makedirs(folder_path, exist_ok=True)
 
-    # Function to extract text from PDFs
-    def extract_text_from_pdf(pdf_path):
-        doc = fitz.open(pdf_path)
-        text = ""
-        for page in doc:
-            text += page.get_text("text") + "\n"
-        return text
-
-    # Extract text from all PDFs in 'dataset' folder
-    all_texts = []
-    for file in os.listdir(folder_path):
-        if file.endswith(".pdf"):
-            pdf_path = os.path.join(folder_path, file)
-            text = extract_text_from_pdf(pdf_path)
-            all_texts.append(text)
-
-    # Combine extracted text
+    # Extract text from PDFs
+    all_texts = [extract_text_from_pdf(os.path.join(folder_path, f)) for f in os.listdir(folder_path) if f.endswith(".pdf")]
     document_text = "\n".join(all_texts)
 
     # Chunking for retrieval
@@ -75,7 +70,7 @@ def load_rag_chain():
     # Load or Create Persistent ChromaDB
     vectorstore = Chroma(
         persist_directory=chroma_db_path,  # ✅ Chroma auto-saves
-        embedding_function=OpenAIEmbeddings()
+        embedding_function=OpenAIEmbeddings(openai_api_key=api_key)
     )
 
     # If Chroma is empty, populate it
@@ -94,7 +89,7 @@ def load_rag_chain():
 
     # Load LLM Model
     # llm = ChatOpenAI(model_name="gpt-3.5-turbo", temperature=0)
-    llm = ChatOpenAI(model_name="gpt-4o-mini", temperature=0)
+    llm = ChatOpenAI(model_name=model, temperature=0.001, openai_api_key=api_key)
 
     # Define RAG Chain
     rag_chain = (

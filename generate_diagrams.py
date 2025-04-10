@@ -4,12 +4,12 @@ import json
 import requests
 import streamlit as st
 import openai
-from dotenv import load_dotenv
+# from dotenv import load_dotenv
 
 # Load environment variables from .env file
-load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
+# load_dotenv()
+# OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+# os.environ["OPENAI_API_KEY"] = OPENAI_API_KEY
 
 # --- Define Directories ---
 PUML_FOLDER = os.path.join(os.getcwd(), "PUML")
@@ -22,7 +22,15 @@ os.makedirs(DIAGRAM_FOLDER, exist_ok=True)
 # --- Read GPT Output ---
 gpt_output_file = "gpt_output.txt"
 
-client = openai.OpenAI(api_key=OPENAI_API_KEY)
+# Read API key from file
+api_key_file = "api_key.txt"
+if os.path.exists(api_key_file):
+    with open(api_key_file, "r") as f:
+        openai_api_key = f.read().strip()
+else:
+    raise ValueError("API Key file missing!")
+
+client = openai.OpenAI(api_key=openai_api_key)
 
 KROKI_PLANTUML_URL = "https://kroki.io/plantuml/png"
 
