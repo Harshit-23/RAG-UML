@@ -5,6 +5,7 @@ from PIL import Image
 from rag_setup import load_rag_chain
 import zipfile
 from io import BytesIO
+from openai import OpenAI
 
 # --- Remove Existing Folders Before Execution (Only when a new scenario is entered) ---
 if "scenario_entered" not in st.session_state:
@@ -32,20 +33,51 @@ st.markdown(f"<style>{custom_css}</style>", unsafe_allow_html=True)
 st.title("RAG-Based UML Diagram Generator")
 st.write("Enter a detailed software scenario below. The system will generate UML diagrams using a RAG model.")
 
-# --- Cache the RAG Chains to prevent reloading ---
+# --- OpenAI Model Selection & API Key Input ---
+st.sidebar.subheader("Configuration")
+
+# Model Selection Dropdown
+model_options = ["gpt-4o-mini", "gpt-4o", "gpt-3.5-turbo"]
+selected_model = st.sidebar.selectbox("Select OpenAI Model", model_options, index=0)
+
+# API Key Input
+openai_api_key = st.sidebar.text_input("Enter OpenAI API Key", type="password")
+isValidKey = False
+
+# Button to Validate API Key
+if st.sidebar.button("Validate API Key"):
+    try:
+        client = OpenAI(api_key=openai_api_key)
+
+        client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[{"role": "user", "content": "Hello!"}]
+        )
+        st.sidebar.success("✅ API Key is valid!")
+        isValidKey = True
+    except Exception as e:
+        st.sidebar.error(f"❌ Invalid API Key: {str(e)}")
+
+# --- Modify Cached RAG Chain Function ---
 @st.cache_resource(show_spinner=False)
-def get_rag_chains():
-    return load_rag_chain()
+def get_rag_chains(api_key, selected_model):
+    return load_rag_chain(api_key, selected_model)  # Pass API Key & Model
 
 # Load RAG Model with Custom Spinner
 with st.spinner("Initializing RAG Model..."):
     if "first_rag_chain" not in st.session_state or "second_rag_chain" not in st.session_state:
-        st.session_state.first_rag_chain, st.session_state.second_rag_chain = get_rag_chains()
+        try:
+            if not openai_api_key or not isValidKey:
+                raise ValueError("Please enter and validate OpenAI API key to initialize the RAG Model.")
+            st.session_state.first_rag_chain, st.session_state.second_rag_chain = get_rag_chains(openai_api_key, selected_model)
+        except ValueError as e:
+            st.warning(f"⚠️ {str(e)}")
+        except Exception as e:
+            st.error(f"❌ Unexpected error: {str(e)}")
 
-# --- Load RAG Chains ---
-first_rag_chain, second_rag_chain = get_rag_chains()
-st.session_state.first_rag_chain = first_rag_chain
-st.session_state.second_rag_chain = second_rag_chain
+
+with open("api_key.txt", "w") as f:
+    f.write(openai_api_key)
 
 # --- Large Text Area for Input ---
 user_input = st.text_area("Enter your scenario:", height=300, key="user_input", help="Provide a detailed description.")
@@ -96,7 +128,7 @@ if st.button("Generate UML Diagrams"):
 
          # Step 1: Invoke the first RAG chain
         try:
-            uml_output = first_rag_chain.invoke(user_input)
+            uml_output = st.session_state.first_rag_chain.invoke(user_input)
 
             # Save UML output to a file
             with open("uml_output.txt", "w", encoding="utf-8") as file:
@@ -125,7 +157,7 @@ if st.button("Generate UML Diagrams"):
             """
 
             # Step 3: Pass the formatted string to the second RAG chain
-            final_response = second_rag_chain.invoke(all_contexts)
+            final_response = st.session_state.second_rag_chain.invoke(all_contexts)
 
             # Save the final response to a file
             with open("gpt_output.txt", "w", encoding="utf-8") as output_file:
