@@ -6,5 +6,5 @@ langchain
 langchain-openai
 langchain-community
 langchain-core
-langchain-chroma
+faiss-cpu
 requests
