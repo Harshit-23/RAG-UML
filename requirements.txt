@@ -7,4 +7,5 @@ langchain-openai
 langchain-community
 langchain-core
 faiss-cpu
-requests
+requests==2.31.0
+
