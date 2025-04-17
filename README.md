@@ -17,14 +17,16 @@ Using `conda` (or any virtual environment manager of your choice):
 ```bash
 conda create -n myenv python=3.11.2
 conda activate myenv
+```
 
 ### 2. Install the necessary dependencies listed in `requirements.txt`
 
 ```bash
 pip install -r requirements.txt
-
+```
 
 ### 3. Run the Streamlit Application
 
 ```bash
 streamlit run streamlit_app.py
+```
